@@ -6,28 +6,14 @@ import "antd/dist/antd.css"
 
 const VARIABLES = ["event.name", "date", "donation.amount", "person.lastName", "image_url"]
 
-/**
- *  TODO:
- *
- *  1. This only works with the first variable.. variables deeper in the string are not selected
- *  2. Dropdown onClick isn't firing
- *  3. The `{{` and `}}` are being replaced, likely from within the `handleTypeaheadReturn` --- need to keep the `{{}}` data somehow.
- *  4. Styling isn't being ran on initialization...
- */
-
 const App = () => {
-	const [inputValue, setInputValue] = useState("")
+	const [inputValue, setInputValue] = useState("some value with {{event.name}} {{ invalid.variable }}")
 
-	console.log({ inputValue })
 	return (
-		<TypeaheadEditor
-			dropdownOptions={VARIABLES}
-			value={inputValue}
-			onChange={value => {
-				setInputValue(value)
-				// get value?
-			}}
-		/>
+		<React.Fragment>
+			{inputValue}
+			<TypeaheadEditor dropdownOptions={VARIABLES} value={inputValue} onChange={setInputValue} />
+		</React.Fragment>
 	)
 }
 
