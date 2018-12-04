@@ -7,10 +7,9 @@ import filterOptions from "./utils/filterOptions"
 import normalizeSelectedIndex from "./utils/normalizeSelectedIndex"
 import findRangesWithRegex from "./utils/findRangesWithRegex"
 
+import Dropdown from "./components/Dropdown"
 import Container from "./components/Container"
 import Editor from "./components/Editor"
-
-const Dropdown = React.lazy(() => import("./components/Dropdown"))
 
 const createEntity = (contentState, value) => contentState.createEntity("VARIABLE", "IMMUTABLE", { value })
 
@@ -25,11 +24,11 @@ const TypeaheadEditor = ({ dropdownOptions = [], value = "", onChange }) => {
 
 		const contentState = editorState.getCurrentContent()
 
-		contentState.getBlockMap().map((block, i) => {
+		contentState.getBlockMap().forEach((block, i) => {
 			const blockKey = block.getKey()
 			const ranges = findRangesWithRegex(AT_REGEX, block)
 
-			ranges.map((range, i) => {
+			ranges.forEach((range, i) => {
 				const start = range.start
 				const end = range.end
 
