@@ -5,7 +5,7 @@ import normalizeSelectedIndex from "../utils/normalizeSelectedIndex"
 import filterOptions from "../utils/filterOptions"
 
 const Container = styled("div")`
-	position: absolute;
+	position: fixed;
 	background: white;
 
 	font-family: Chinese Quote, -apple-system, BlinkMacSystemFont, Segoe UI, PingFang SC, Hiragino Sans GB,
@@ -22,8 +22,8 @@ const Container = styled("div")`
 
 	${({ top, left }) =>
 		`
-		top: ${top - 32}px;
-		left: ${left - 32}px;
+		top: ${top}px;
+		left: ${left}px;
 	`}
 
 	ul {
@@ -63,6 +63,7 @@ export default ({ options = [], left, top, selectedIndex, text }) => {
 	const filteredOptions = filterOptions(options, text.replace("{{", "").replace("}}", ""))
 	const normalizedIndex = normalizeSelectedIndex(selectedIndex, filteredOptions.length)
 
+	console.log(top, left);
 	return (
 		<Container
 			left={left}

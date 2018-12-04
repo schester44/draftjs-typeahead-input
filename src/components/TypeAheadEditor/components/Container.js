@@ -2,7 +2,6 @@ import styled from "styled-components"
 
 export default styled("div")`
 	position: relative;
-	margin: 50px;
 
 	.anticon {
 		position: absolute;
