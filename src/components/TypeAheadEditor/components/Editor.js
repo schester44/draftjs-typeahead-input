@@ -1,6 +1,7 @@
 import React from "react"
 import { Editor } from "draft-js"
 import getTriggerRange from "../utils/getTriggerRange"
+import getRange from "../utils/getRange"
 
 class TypeaheadEditor extends Editor {
 	constructor(props) {
@@ -22,33 +23,45 @@ class TypeaheadEditor extends Editor {
 		return !!block.getEntityAt(selection.getStartOffset() - 1)
 	}
 
-	getTypeaheadState(invalidate = true) {
+	getTypeaheadState(invalidate = true, options = {}) {
 		if (!invalidate) {
 			return this.typeaheadState
 		}
 
-		const typeaheadRange = getTriggerRange("{{")
+		const isTriggerClick = !!options.trigger
+		const typeaheadRange = isTriggerClick ? getRange() : getTriggerRange("@")
 
 		if (!typeaheadRange) {
 			this.typeaheadState = null
 			return null
 		}
 
-		const tempRange = window
-			.getSelection()
-			.getRangeAt(0)
-			.cloneRange()
+		if (!isTriggerClick) {
+			const tempRange = window
+				.getSelection()
+				.getRangeAt(0)
+				.cloneRange()
 
-		tempRange.setStart(tempRange.startContainer, typeaheadRange.start)
+			tempRange.setStart(tempRange.startContainer, typeaheadRange.start)
 
-		const rangeRect = tempRange.getBoundingClientRect()
-		let [left, top] = [rangeRect.left, rangeRect.bottom]
+			const rangeRect = tempRange.getBoundingClientRect()
+			let [left, top] = [rangeRect.left, rangeRect.bottom]
 
-		this.typeaheadState = {
-			left,
-			top,
-			text: typeaheadRange.text,
-			selectedIndex: 0
+			this.typeaheadState = {
+				left,
+				top,
+				text: typeaheadRange.text,
+				selectedIndex: 0
+			}
+		} else {
+			const rect = this.triggerEl.getBoundingClientRect()
+
+			this.typeaheadState = {
+				top: rect.top + 30,
+				left: rect.left,
+				text: "",
+				selectedIndex: 0
+			}
 		}
 
 		return this.typeaheadState
@@ -57,8 +70,7 @@ class TypeaheadEditor extends Editor {
 	onChange = editorState => {
 		this.props.onChange(editorState)
 
-		// Set typeahead visibility. Wait a frame to ensure that the cursor is
-		// updated.
+		// Set typeahead visibility. Wait a frame to ensure that the cursor is updated.
 		if (this.props.onTypeaheadChange) {
 			window.requestAnimationFrame(() => {
 				this.props.onTypeaheadChange(this.getTypeaheadState())
@@ -108,6 +120,7 @@ class TypeaheadEditor extends Editor {
 				const contentState = this.props.editorState.getCurrentContent()
 
 				const selection = contentState.getSelectionAfter()
+
 				const entitySelection = selection.set(
 					"anchorOffset",
 					selection.getFocusOffset() - this.typeaheadState.text.length
@@ -126,18 +139,46 @@ class TypeaheadEditor extends Editor {
 		return false
 	}
 
+	setTriggerRef = el => {
+		this.triggerEl = el
+	}
+
+	onTriggerClick = e => {
+		e.preventDefault()
+		e.stopPropagation()
+
+		if (this.props.onTypeaheadChange) {
+			window.requestAnimationFrame(() => {
+				this.props.onTypeaheadChange(this.getTypeaheadState(undefined, { trigger: true }))
+			})
+		}
+	}
+
+	setRef = el => {
+		this.ee = el
+	}
+
 	render() {
-		const { onChange, onEscape, onUpArrow, onDownArrow, onTypeaheadChange, ...other } = this.props
+		const { triggerIcon, onChange, onEscape, onUpArrow, onDownArrow, onTypeaheadChange, ...other } = this.props
 
 		return (
-			<Editor
-				{...other}
-				onChange={this.onChange}
-				onEscape={this.onEscape}
-				onUpArrow={this.onUpArrow}
-				onDownArrow={this.onDownArrow}
-				handleReturn={this.handleReturn}
-			/>
+			<div>
+				{triggerIcon && (
+					<div ref={this.setTriggerRef} className="trigger-icon" onClick={this.onTriggerClick}>
+						{triggerIcon}
+					</div>
+				)}
+				<Editor
+					{...other}
+					ref={this.setRef}
+					stripPastedStyles={true}
+					onChange={this.onChange}
+					onEscape={this.onEscape}
+					onUpArrow={this.onUpArrow}
+					onDownArrow={this.onDownArrow}
+					handleReturn={this.handleReturn}
+				/>
+			</div>
 		)
 	}
 }

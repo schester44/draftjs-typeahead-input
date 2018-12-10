@@ -52,6 +52,7 @@ const Container = styled("div")`
 			transition: all 0.3s;
 			line-height: 22px;
 
+			&:hover,
 			&.active {
 				background-color: #e6f7ff;
 			}
@@ -59,31 +60,19 @@ const Container = styled("div")`
 	}
 `
 
-export default ({ options = [], left, top, selectedIndex, text }) => {
-	const filteredOptions = filterOptions(options, text.replace("{{", "").replace("}}", ""))
+export default ({ options = [], left, top, selectedIndex, text, onSelect }) => {
+	const filteredOptions = filterOptions(options, text.replace("@", ""))
 	const normalizedIndex = normalizeSelectedIndex(selectedIndex, filteredOptions.length)
 
-	console.log(top, left);
 	return (
-		<Container
-			left={left}
-			top={top}
-			onClick={e => {
-				// TODO: Make this work with onClick events (select from dropdown)
-				e.preventDefault()
-				e.stopPropagation()
-				console.log(e)
-			}}
-		>
+		<Container left={left} top={top}>
 			<ul>
 				{filteredOptions.map((variable, index) => {
 					return (
 						<li
 							key={index}
 							onClick={e => {
-								e.preventDefault()
-								e.stopPropagation()
-								console.log(e)
+								onSelect(index)
 							}}
 							className={index === normalizedIndex ? "active" : ""}
 						>

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 
 import { EditorState, Modifier, SelectionState, convertToRaw } from "draft-js"
 
@@ -13,16 +13,16 @@ import Editor from "./components/Editor"
 
 const createEntity = (contentState, value) => contentState.createEntity("VARIABLE", "IMMUTABLE", { value })
 
-const TypeaheadEditor = ({ dropdownOptions = [], value = "", onChange }) => {
+const TypeaheadEditor = ({ dropdownOptions = [], value = "", onChange, triggerIcon }) => {
 	const [typeahead, setTypeAhead] = useState(null)
 	const [editorState, setEditorState] = useState(createStateFromText(value))
-	const editorRef = useRef(null)
 
 	// This effecet is responsible for styling variables and creating appropriate Entity's. It is only ran when the component is mounted
 	useEffect(() => {
 		const AT_REGEX = /{{([a-zA-z._]+)}}/g
 
-		const contentState = editorState.getCurrentContent()
+		let nextEditorState = editorState
+		const contentState = nextEditorState.getCurrentContent()
 
 		contentState.getBlockMap().forEach((block, i) => {
 			const blockKey = block.getKey()
@@ -32,36 +32,43 @@ const TypeaheadEditor = ({ dropdownOptions = [], value = "", onChange }) => {
 				const start = range.start
 				const end = range.end
 
+				// TODO: We're manually moving the SelectionState minus i*4, 4 being the total number of extra characters that will be removed ({{}}) to set the correct selection... this works, but its super hacky. We should be getting better ranges after each editorState update instead.
 				const selection = new SelectionState({
 					anchorKey: blockKey,
-					anchorOffset: start,
+					anchorOffset: start - i * 4,
 					focusKey: blockKey,
-					focusOffset: end
+					focusOffset: end - i * 4
 				})
 
 				const entityKey = block.getEntityAt(start)
+
 				if (entityKey === null) {
+					const contentState = nextEditorState.getCurrentContent()
+
 					const contentStateWithEntity = createEntity(contentState, range.text)
 
 					const entityKey = contentStateWithEntity.getLastCreatedEntityKey()
 
 					const contentStateWithReplacementText = Modifier.replaceText(
-						editorState.getCurrentContent(),
+						//get the current state
+						contentState,
+						//at this selection range
 						selection,
-						// replace hte {{variable}} with text that does not include `{{}}`
+						// replace the {{variable}} with text that does not include `{{}}`
 						range.text.substring(2, range.text.length - 2),
 						null,
 						entityKey
 					)
 
-					const nextEditorState = EditorState.push(editorState, contentStateWithReplacementText, "apply-entity")
-
-					if (nextEditorState !== editorState) {
-						useEditorState(nextEditorState)
-					}
+					nextEditorState = EditorState.push(nextEditorState, contentStateWithReplacementText, "apply-entity")
 				}
 			})
 		})
+
+		// finally, after all the changes have been made to the `nextEditorState`, we update the editorState.
+		if (nextEditorState !== editorState) {
+			useEditorState(nextEditorState)
+		}
 	}, [])
 
 	const useEditorState = nextEditorState => {
@@ -94,8 +101,14 @@ const TypeaheadEditor = ({ dropdownOptions = [], value = "", onChange }) => {
 	}
 
 	const handleTypeaheadReturn = (text, selectedIndex, selection) => {
-		const filteredOptions = filterOptions(dropdownOptions, text.replace("{{", "").replace("}}", ""))
+		const filteredOptions = filterOptions(dropdownOptions, text.replace("@", ""))
 		const index = normalizeSelectedIndex(selectedIndex, filteredOptions.length)
+
+		// We shouldn't be doing any text replacement if the replacement text is undefined.
+		// This will happen if the user presses Enter after searching for text that doesn't exist in the dropdownOptions
+		if (!filteredOptions[index]) {
+			return
+		}
 
 		const contentState = editorState.getCurrentContent()
 
@@ -121,17 +134,53 @@ const TypeaheadEditor = ({ dropdownOptions = [], value = "", onChange }) => {
 	const renderTypeahead = () => {
 		if (typeahead === null) return null
 
-		return <Dropdown options={dropdownOptions} {...typeahead} />
+		return (
+			<Dropdown
+				onSelect={selectedIndex => {
+					const contentState = editorState.getCurrentContent()
+
+					// TODO: There is a bug somewhere that causes the entitySelection offsets to be wrong which causes variables selected from the triggerIcon to be inserted in the middle of the string instead of at the end of the string. this is likely because the currentSelection is wrong -- SelectionState's are created in init (to style the existing variables)
+
+					const selection = contentState.getSelectionAfter()
+					const editorHasFocus = selection.getHasFocus()
+
+					let entitySelection
+					if (editorHasFocus) {
+						entitySelection = selection.set("anchorOffset", selection.getFocusOffset())
+					} else {
+						// The editor doesn't have focus here so we get the length of the text, set the SelectionState to the end of the string and then do our thing. This inserts the variable at the end of the string.
+						const textLength = contentState.getPlainText().length
+						entitySelection = selection.set("focusOffset", textLength).set("anchorOffset", textLength)
+					}
+
+					handleTypeaheadReturn("", selectedIndex, entitySelection)
+					setTypeAhead(null)
+				}}
+				options={dropdownOptions}
+				{...typeahead}
+			/>
+		)
 	}
 	return (
 		<Container>
 			<React.Suspense fallback={<span />}>{renderTypeahead()}</React.Suspense>
+
 			<div className="editor">
 				<Editor
-					ref={editorRef}
+					triggerIcon={triggerIcon}
 					editorState={editorState}
+					onFocus={e => {
+						const contentState = editorState.getCurrentContent()
+
+						// const selectionState = SelectionState.createEmpty();
+						// const selectionStateWithNewFocusOffset = selection.set('focusOffset', );
+
+						// this.setState({ editorState: EditorState.forceSelection(contentState, selectionState) })
+					}}
 					onChange={useEditorState}
-					onTypeaheadChange={setTypeAhead}
+					onTypeaheadChange={t => {
+						setTypeAhead(t)
+					}}
 					handleTypeaheadReturn={handleTypeaheadReturn}
 				/>
 			</div>

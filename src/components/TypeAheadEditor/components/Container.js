@@ -3,10 +3,20 @@ import styled from "styled-components"
 export default styled("div")`
 	position: relative;
 
-	.anticon {
+	.trigger-icon {
+		z-index: 99;
 		position: absolute;
-		top: 7px;
+		top: 5px;
 		right: 7px;
+		font-size: 16px;
+		cursor: pointer;
+
+		&:hover {
+			& ~ .editor {
+				border: 1px solid #d9d9d9;
+			}
+			opacity: 0.8;
+		}
 	}
 
 	.editor {
